@@ -2,7 +2,10 @@ module github.com/klokar/kolpa-temperatures
 
 go 1.17
 
-require github.com/emicklei/go-restful/v3 v3.5.2
+require (
+	github.com/emicklei/go-restful/v3 v3.5.2
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+)
 
 require (
 	github.com/json-iterator/go v1.1.12 // indirect
