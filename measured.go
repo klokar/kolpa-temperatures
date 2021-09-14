@@ -7,7 +7,12 @@ import (
 	"net/http"
 )
 
-const ARSOUrl = "http://www.arso.gov.si/xml/vode/hidro_podatki_zadnji.xml"
+const (
+	UrlARSO = "http://www.arso.gov.si/xml/vode/hidro_podatki_zadnji.xml"
+	ErrARSOUnreachable = "ARSO is unreachable"
+	ErrARSOBadResponse = "ARSO returned bad reponse"
+	ErrARSOResponseNotParsable = "ARSO response could not be parsed"
+)
 
 type Station struct {
 	Id          int  `xml:"sifra,attr"`
@@ -26,21 +31,21 @@ func Measurements() ([]Station, error) {
 	var measurements []Station
 	var results arsoHydroResponse
 
-	resp, err := http.Get(ARSOUrl)
+	resp, err := http.Get(UrlARSO)
 	if err != nil {
-		return measurements, errors.New("ARSO unreachable")
+		return measurements, errors.New(ErrARSOUnreachable)
 	}
 
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return measurements, errors.New("ARSO response unreadable")
+		return measurements, errors.New(ErrARSOBadResponse)
 	}
 
 	err = xml.Unmarshal(body, &results)
 	if err != nil {
-		return measurements, errors.New("ARSO response unparsable")
+		return measurements, errors.New(ErrARSOResponseNotParsable)
 	}
 
 	return results.Stations, nil

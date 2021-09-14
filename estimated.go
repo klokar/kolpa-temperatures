@@ -7,6 +7,8 @@ import (
 const (
 	ARSOPetrina = 4820
 	ARSOMetlika = 4860
+	ErrARSOUnknownLocation = "unknown location"
+	ErrARSOBaseTempsMissing = "base ARSO temperatures missing"
 )
 
 type location struct {
@@ -20,8 +22,8 @@ type baseTemperatures struct {
 }
 
 type Estimation struct {
-	fullName    string
-	temperature float64
+	FullName    string
+	Temperature float64
 }
 
 func Estimate(name string) (Estimation, error) {
@@ -33,13 +35,13 @@ func Estimate(name string) (Estimation, error) {
 
 	locations := locations()
 	if location, ok := locations[name]; ok {
-		estimation.fullName = location.fullName
-		estimation.temperature = location.calculate(base)
+		estimation.FullName = location.fullName
+		estimation.Temperature = location.calculate(base)
 
 		return estimation, nil
 	}
 
-	return estimation, errors.New("unknown location")
+	return estimation, errors.New(ErrARSOUnknownLocation)
 }
 
 func EstimateAll() ([]Estimation, error) {
@@ -76,7 +78,7 @@ func obtainBase() (baseTemperatures, error) {
 	}
 
 	if base.start == 0 || base.end == 0 {
-		return base, errors.New("base temperatures missing")
+		return base, errors.New(ErrARSOBaseTempsMissing)
 	}
 
 	return base, nil
