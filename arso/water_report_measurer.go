@@ -1,4 +1,4 @@
-package main
+package arso
 
 import (
 	"encoding/xml"
@@ -10,9 +10,9 @@ import (
 )
 
 const (
+	WaterReportURL             = "http://www.arso.gov.si/xml/vode/hidro_podatki_zadnji.xml"
 	CacheExpirationMinutes     = 30
 	CacheKey                   = "arso-report"
-	UrlARSO                    = "http://www.arso.gov.si/xml/vode/hidro_podatki_zadnji.xml"
 	ErrARSOUnreachable         = "ARSO is unreachable"
 	ErrARSOBadResponse         = "ARSO returned bad reponse"
 	ErrARSOResponseNotParsable = "ARSO response could not be parsed"
@@ -24,7 +24,7 @@ func init() {
 	cache = memoryCache.New(CacheExpirationMinutes*time.Minute, CacheExpirationMinutes*2*time.Minute)
 }
 
-type Station struct {
+type arsoHydroStation struct {
 	Id          int     `xml:"sifra,attr"`
 	River       string  `xml:"reka"`
 	Location    string  `xml:"merilno_mesto"`
@@ -32,21 +32,25 @@ type Station struct {
 }
 
 type arsoHydroResponse struct {
-	XMLName  xml.Name  `xml:"arsopodatki"`
-	Date     string    `xml:"datum_priprave"`
-	Stations []Station `xml:"postaja"`
+	XMLName  xml.Name           `xml:"arsopodatki"`
+	Date     string             `xml:"datum_priprave"`
+	Stations []arsoHydroStation `xml:"postaja"`
 }
 
-func Measurements() ([]Station, error) {
-	var measurements []Station
+type WaterReportMeasurer struct {
+	ReportURL string
+}
+
+func (measurer WaterReportMeasurer) Rivers() ([]RiverMeasurement, error) {
+	var measurements []RiverMeasurement
 	var results arsoHydroResponse
 
 	report, found := cache.Get(CacheKey)
 	if found {
-		return report.([]Station), nil
+		return report.([]RiverMeasurement), nil
 	}
 
-	resp, err := http.Get(UrlARSO)
+	resp, err := http.Get(measurer.ReportURL)
 	if err != nil {
 		return measurements, errors.New(ErrARSOUnreachable)
 	}
@@ -63,7 +67,21 @@ func Measurements() ([]Station, error) {
 		return measurements, errors.New(ErrARSOResponseNotParsable)
 	}
 
-	cache.Set(CacheKey, results.Stations, memoryCache.DefaultExpiration)
+	// Transform to river measurements.
+	for _, station := range results.Stations {
+		measurements = append(measurements, toRiverMeasurement(station))
+	}
 
-	return results.Stations, nil
+	cache.Set(CacheKey, measurements, memoryCache.DefaultExpiration)
+
+	return measurements, nil
+}
+
+func toRiverMeasurement(station arsoHydroStation) RiverMeasurement {
+	return RiverMeasurement{
+		Id:          station.Id,
+		River:       station.River,
+		Location:    station.Location,
+		Temperature: station.Temperature,
+	}
 }
